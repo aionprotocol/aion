@@ -1,126 +1,224 @@
-Aion Protocol Specification v0.1 (Draft)
-1. Overview
+Aion Protocol Specification v0.2
 
-Aion is a blockless distributed ledger protocol based on:
+Post-Quantum Conservative Architecture
 
-Directed Acyclic Graph (DAG) transaction structure
+1. Threat Model
 
-Probabilistic consensus
+Aion assumes the existence of adversaries with:
 
-Confidence-based finality
+Large-scale quantum computational capability
 
-Emergent logical time
+Real-time network surveillance
 
-Quantum-resilient cryptographic primitives
+Ability to attempt key recovery immediately after public key exposure
 
-This document defines the foundational mechanics of the protocol.
+Significant computational and financial resources
 
-2. Transaction Model
+All protocol decisions prioritize long-term cryptographic resilience.
 
-Each transaction in Aion contains:
+2. Ledger Model
 
-Transaction ID (hash)
+The ledger is a Directed Acyclic Graph (DAG).
 
-Parent references (2+ previous transactions)
+Definition
 
-Sender public key
+Each vertex represents a transaction.
 
-Signature
+Each edge represents a parent reference.
 
-Timestamp (local, non-authoritative)
-
-Payload
-
-Fee
-
-Nonce
-
-Transactions must reference at least two previous valid transactions to maintain DAG connectivity.
-
-3. DAG Structure
-
-The ledger is represented as a Directed Acyclic Graph:
-
-Nodes = Transactions
-
-Edges = References to previous transactions
+No cycles are allowed.
 
 No global linear ordering exists.
 
-Instead:
+Each transaction must reference at least two valid parent transactions.
 
-Partial ordering emerges through references
+3. Transaction Structure
 
-Causal depth defines relative temporal structure
+A transaction consists of:
 
-4. Confidence Score
+Transaction = {
+    header,
+    body
+}
+3.1 Header
+header = {
+    parents: [tx_id, tx_id, ...],
+    timestamp: u64
+}
 
-Each transaction accumulates a confidence score over time.
+Constraints:
+
+At least two parent references.
+
+Parents must exist and be valid.
+
+Timestamp is informational only (non-consensus).
+
+3.2 Body
+body = {
+    inputs: [Input],
+    outputs: [Output]
+}
+
+The body is the signed portion.
+
+4. Input Structure
+Input = {
+    referenced_output_id: Hash512,
+    public_key: DilithiumPublicKey,
+    signature: DilithiumSignature
+}
+
+Rules:
+
+referenced_output_id must exist in current UTXO set.
+
+signature signs the serialized body.
+
+public_key must satisfy:
+
+SHA3-512(public_key) == locking_hash of referenced output
+
+5. Output Structure
+Output = {
+    amount: u128,
+    locking_hash: Hash512
+}
+
+Where:
+
+locking_hash = SHA3-512(public_key)
+
+Rules:
+
+Amount must be positive.
+
+Total input amount ≥ total output amount.
+
+Difference constitutes transaction fee.
+
+6. Transaction ID
+tx_id = SHA3-512(serialize(header || body))
+
+512-bit identifier.
+
+Collision-resistant under quantum-reduced security assumptions.
+
+7. UTXO Set
+
+The UTXO set maintains all unspent outputs.
+
+An output is removed when:
+
+A valid transaction referencing it accumulates sufficient confidence.
+
+Double-spend resolution is handled probabilistically via consensus convergence.
+
+8. Consensus Model
+
+Aion uses metastable probabilistic consensus:
+
+Validator samples k random peers.
+
+Requests preferred transaction in case of conflict.
+
+Updates local preference if supermajority observed.
+
+Repeats sampling until convergence threshold met.
+
+No mining.
+No leader.
+No block production.
+
+9. Confidence Score
+
+Each transaction maintains:
+
+confidence_score ∈ [0, 1]
 
 Confidence increases when:
 
-Validators sample and prefer it
+Sampling rounds prefer the transaction.
 
-Descendant transactions indirectly reinforce it
+Descendants reinforce its validity.
 
-Network convergence increases
+Network convergence stabilizes.
 
-Finality is defined when:
+Finality condition:
 
-confidence_score ≥ threshold
+confidence_score ≥ finality_threshold
 
-Threshold is parameterized and adjustable by protocol governance.
+Threshold defined via network parameters.
 
-5. Validator Sampling
+10. Cryptographic Primitives
+Hash Function
 
-Consensus operates via repeated stochastic sampling:
+SHA3-512
 
-A validator queries a random subset of peers.
+Used for:
 
-It asks which transaction they prefer in case of conflict.
+Transaction IDs
 
-Repeated rounds produce metastable convergence.
+Address derivation
 
-This mechanism ensures probabilistic finality without mining or leader election.
+Integrity checks
 
-6. Emergent Time
+Digital Signatures
 
-Time is not block-based.
+CRYSTALS-Dilithium (highest NIST category)
 
-Logical time is derived from:
+No classical signatures supported
 
-DAG depth
+No hybrid fallback
 
-Validator agreement density
+11. Address Model
 
-Transaction propagation patterns
+Addresses are defined as:
 
-Temporal ordering is structural, not imposed.
+address = SHA3-512(public_key)
 
-7. Economic Model (High-Level)
+Public keys are only revealed at spend time.
+
+Each output must use a fresh public key.
+
+Key reuse is strongly discouraged and may be rejected by future consensus rules.
+
+12. Security Properties
+
+Aion aims to provide:
+
+Post-quantum signature security
+
+256-bit effective hash security under Grover reduction
+
+Minimal key exposure window
+
+Resistance to leader-targeted attacks
+
+Resistance to block reorganization attacks (no blocks)
+
+13. Economic Model (High-Level)
+
+Low perpetual inflation
 
 Continuous validator rewards
 
-Low perpetual inflation (1–2% annual target)
+Near-zero dynamic anti-spam fees
 
-Dynamic anti-spam fees
+Contribution-weighted incentive model
 
-Incentives proportional to network contribution
-
-Detailed economic formulas will be defined in a separate document.
-
-8. Cryptography
-
-Planned primitives:
-
-Post-quantum digital signatures
-
-Modern hash functions resistant to Grover-style attacks
-
-Secure peer authentication
-
-Exact cryptographic suite to be finalized in crypto specification.
+Formal economic equations defined separately.
 
 Status
 
-This is an early draft specification intended to formalize core protocol behavior.
+This document defines the formal post-quantum conservative architecture of Aion.
+
+Further specifications will define:
+
+Binary serialization format
+
+Networking protocol
+
+Validator reward formulas
+
+Governance parameters
