@@ -1,254 +1,167 @@
-Aion Node Architecture v0.1
-1. Overview
+# Aion Node Architecture v0.1
 
-An Aion node is a deterministic validation engine that:
+## 1. Overview
 
-Maintains the DAG ledger
+Aion nodes are designed as modular systems that enforce deterministic
+state transitions over a DAG-based ledger.
 
-Maintains the UTXO set
+Each module has a clearly defined responsibility to ensure:
 
-Participates in probabilistic consensus
+- correctness
+- reproducibility
+- cryptographic integrity
+- consensus convergence
 
-Validates post-quantum transactions
+The architecture is intentionally layered.
 
-Communicates with peers via gossip
+---
 
-Exposes a local API interface
+## 2. Node Modules
 
-The node is modular by design.
+A node consists of the following logical components:
 
-Each subsystem must be independently testable and deterministic.
-
-2. High-Level Architecture
-+--------------------+
-|       API Layer    |
-+--------------------+
-|     Consensus      |
-+--------------------+
-|        DAG         |
-+--------------------+
-|       UTXO         |
-+--------------------+
-|      Mempool       |
-+--------------------+
-|        P2P         |
-+--------------------+
-|      Storage       |
-+--------------------+
-|       Crypto       |
-+--------------------+
-
-All modules operate over deterministic serialized structures defined in data-model.md.
-
-3. Module Responsibilities
-3.1 Crypto Module
+### 2.1 Crypto Layer
 
 Responsible for:
 
-SHA3-512 hashing
+- SHA3-512 hashing
+- Dilithium signature verification
+- Locking hash validation
 
-Dilithium signature verification
+This layer must be deterministic and side-effect free.
 
-Domain separation enforcement
+---
 
-Key validation rules
-
-Properties:
-
-Stateless
-
-Pure functions
-
-No network access
-
-No storage access
-
-3.2 Storage Module
+### 2.2 Storage Layer
 
 Responsible for:
 
-Persistent DAG storage
+- Transaction persistence
+- UTXO set persistence
+- DAG state storage
 
-Persistent UTXO set
+Must ensure:
 
-Transaction index
+- crash consistency
+- deterministic retrieval
 
-Peer metadata
+---
 
-Confidence scores
-
-Requirements:
-
-Crash consistency
-
-Atomic updates
-
-Deterministic reads
-
-Likely backend (initial version):
-
-RocksDB or sled (Rust-native)
-
-3.3 DAG Module
+### 2.3 DAG Layer
 
 Responsible for:
 
-In-memory DAG representation
+- Transaction insertion
+- Parent reference validation
+- Conflict detection
 
-Parent validation
+Rules:
 
-Causal ordering
+- All non-genesis transactions must reference at least two parents.
+- Genesis is allowed to have zero parents.
 
-Conflict tracking
+---
 
-Depth calculation
-
-Properties:
-
-No cryptographic verification
-
-No signature checking
-
-Pure structural logic
-
-3.4 UTXO Module
+### 2.4 UTXO Layer
 
 Responsible for:
 
-Tracking unspent outputs
+- Tracking unspent outputs
+- Preventing double spend
+- Maintaining economic state
 
-Validating referenced outputs
+State transitions occur only after:
 
-Detecting double-spends
+- structural validation
+- cryptographic validation
+- DAG validation
 
-Updating state after confirmed transactions
+---
 
-Operates only after structural validation.
-
-3.5 Mempool Module
-
-Responsible for:
-
-Holding pending transactions
-
-Filtering invalid transactions
-
-Conflict pre-checking
-
-Prioritization (future)
-
-Transactions remain in mempool until sufficient confidence.
-
-3.6 Consensus Module
+### 2.5 Mempool Layer
 
 Responsible for:
 
-Sampling peers
+- Storing valid but unfinalized transactions
+- Managing conflicts
+- Feeding consensus sampling
 
-Querying transaction preferences
+---
 
-Updating confidence_score
-
-Resolving conflicts probabilistically
-
-Determining metastable preference
-
-Properties:
-
-Asynchronous
-
-Probabilistic
-
-Eventually consistent
-
-No global ordering exists.
-
-3.7 P2P Module
+### 2.6 Consensus Layer
 
 Responsible for:
 
-Peer discovery
+- Probabilistic sampling of peers
+- Preference propagation
+- Confidence accumulation
 
-Gossip propagation
+Consensus determines:
 
-Request/response protocol
+- which transactions become accepted
+- which conflicts are rejected
 
-Transaction broadcast
+---
 
-DAG synchronization
-
-Must resist:
-
-Spam
-
-Eclipse attacks
-
-Malformed data
-
-3.8 API Module
+### 2.7 API Layer
 
 Responsible for:
 
-Wallet interaction
+- External interaction
+- Transaction submission
+- State queries
 
-Transaction submission
+Must not bypass validation pipeline.
 
-Querying transaction status
+---
 
-Querying confidence
+## 3. Validation Pipeline
 
-Node metrics
+Incoming transactions follow this order:
 
-Likely initial form:
+1. Structural validation
+2. Cryptographic validation
+3. DAG validation
+4. UTXO validation
+5. Mempool admission
+6. Consensus evaluation
+7. Final state transition
 
-JSON-RPC over HTTP
+---
 
-4. Transaction Validation Pipeline
+## 4. Genesis Handling
 
-When a transaction is received:
+If the DAG is empty:
 
-P2P receives serialized transaction
+- the first transaction received is treated as genesis
+- parent validation is skipped
+- UTXO outputs are inserted directly
 
-Crypto verifies basic structure & signature
+Genesis initializes the economic state.
 
-DAG validates parent references
+---
 
-UTXO checks referenced outputs
-
-Mempool inserts transaction
-
-Consensus begins sampling process
-
-Confidence score accumulates
-
-UTXO set updated after threshold reached
-
-5. Determinism Rules
+## 5. Determinism Requirements
 
 All nodes must:
 
-Use identical hashing rules
+- serialize identically
+- hash identically
+- sort parents identically
+- avoid non-deterministic logic
 
-Use identical serialization rules
+Failure to do so may result in consensus divergence.
 
-Reject malformed or ambiguous structures
+---
 
-Avoid non-deterministic floating-point operations
+## 6. State Transition Rule
 
-Consensus safety depends on deterministic validation.
+The UTXO set is updated only when:
 
-6. Security Model
+- consensus confidence exceeds threshold
 
-Assumptions:
+This separates:
 
-Adversaries may have large-scale quantum capabilities
-
-Network may contain malicious peers
-
-Messages may be reordered
-
-Sybil nodes may exist
-
-Design priority:
-
-Structural correctness > performance.
+- structural validity
+- economic validity
+- canonical acceptance
