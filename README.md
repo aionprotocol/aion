@@ -1,144 +1,137 @@
 # Aion
 
-Aion is a quantum-resilient, blockless distributed ledger protocol built around probabilistic consensus and emergent time.
+Aion is a formally specified distributed ledger protocol built around a blockless DAG architecture.
 
-Aion is not a fork.
-It is not a modification of an existing chain.
+It is designed to provide:
 
-It is a new protocol architecture built from first principles.
+- Asynchronous transaction ordering
+- Probabilistic consensus
+- Confidence-based finality
+- Emergent time derived from causality
+- Post-quantum security assumptions
 
----
+Rather than relying on linear block production or leader-based coordination, Aion models ledger evolution as a causally-structured graph of transactions.
 
-## Vision
+This enables order without rigid sequencing, and finality without deterministic locking.
 
-Most blockchain systems rely on:
-
-- Linear block production
-- Global ordering
-- Binary finality
-- Imposed time
-
-Aion takes a fundamentally different approach.
-
-It operates with:
-
-- No blocks
-- No global linear chain
-- No binary confirmations
-- No rigid time assumptions
-
-Instead, Aion is built on:
-
-- A Directed Acyclic Graph (DAG) transaction structure  
-- Probabilistic consensus via repeated stochastic sampling  
-- Confidence-based confirmations  
-- Emergent logical time derived from causal structure  
-
-Time is not imposed.
-
-It emerges from the structure of validation itself.
 
 ---
 
-## Core Principles
+## Overview
 
-### Blockless Architecture
+Aion is built on a Directed Acyclic Graph (DAG) transaction structure combined with a UTXO-based accounting model.
 
-Aion eliminates blocks entirely.
+Transactions reference prior events directly, forming a causally consistent structure from which ordering and settlement confidence can emerge.
 
-Transactions reference previous transactions directly, forming a DAG.
+Consensus is not expressed through block production, but through probabilistic validation and confidence accumulation across the graph.
 
-This removes bottlenecks caused by:
+Time is not imposed externally, but derived from transaction relationships.
 
-- block intervals
-- leader election
-- artificial ordering
 
 ---
+
+## Core Design Principles
+
+### Blockless Ledger
+
+Aion eliminates block production entirely.  
+The ledger evolves as a transaction graph rather than a sequence of blocks.
 
 ### Probabilistic Consensus
 
-Consensus is achieved through repeated randomized sampling between validators.
+Instead of deterministic finality through majority agreement, Aion is designed to converge through metastable sampling and confidence accumulation.
 
-Finality is not binary.
+### Confidence-Based Finality
 
-Each transaction accumulates a **confidence score** over time.
-
-When confidence exceeds a defined threshold,
-the transaction is considered practically irreversible.
-
----
+Settlement emerges asymptotically as confidence increases across transaction history.
 
 ### Emergent Time
 
-Aion does not rely on authoritative timestamps.
+Ordering arises from causal structure rather than timestamps or leader schedules.
 
-Logical time is derived from:
+### Post-Quantum Orientation
 
-- causal depth  
-- validator agreement density  
-- network convergence  
+Signature and identity layers are designed to support post-quantum cryptographic primitives.
 
-Time is measured through structure, not clocks.
 
 ---
 
-### Quantum-Resilient Cryptography
+## Implementation Status
 
-Aion is designed from inception to resist future quantum attacks.
+Aion is a formally specified distributed ledger protocol currently undergoing staged implementation.
 
-Planned primitives include:
+The protocol design defines a DAG-based transaction ledger with a UTXO model, probabilistic consensus, confidence-based finality, and post-quantum security assumptions.
 
-- Post-quantum signature schemes (e.g. CRYSTALS-Dilithium class)
-- Modern hash functions resistant to quantum-accelerated search
+The current Rust node represents an early materialization of this specification and includes:
 
-Security is not an upgrade.
+- DAG-based ledger structure (in-memory)
+- Functional UTXO model
+- Deterministic structural validation
+- Multi-parent transaction support
+- Canonical output identifiers
+- Double-spend protection
+- Genesis transaction exception handling
+- Modular validation pipeline
 
-It is a foundation.
+The following protocol components are already specified at the design level but are **not yet implemented** in the current node:
 
----
+- Probabilistic metastable consensus
+- Confidence score accumulation
+- Emergent time ordering
+- Post-quantum signature scheme
+- Peer-to-peer networking layer
+- Distributed validator participation
+- Incentive or reward mechanisms
 
-### Sustainable Monetary Model
+As such, the existing implementation should be understood as a structural execution layer aligned with the protocol specification, rather than a complete realization of its consensus and security model.
 
-Aion proposes:
-
-- Low perpetual inflation (~1–2% annually)
-- Continuous validator rewards
-- Near-zero adaptive anti-spam fees
-- Incentives aligned with real network contribution
-
-The goal is stability, not artificial scarcity.
-
----
-
-## Design Status
-
-Aion is currently in early protocol definition phase.
-
-Defined components:
-
-- DAG transaction model
-- Probabilistic confidence consensus
-- Emergent time model
-- Economic structure framework
-- Modular node architecture
-
-Implementation is evolving iteratively.
 
 ---
 
-## Philosophy
+## Documentation
 
-Aion is built on the idea that:
+The formal protocol specification is available in:
 
-- Order can emerge without rigid hierarchy  
-- Finality can be asymptotic  
-- Time can be structural  
-- Security must anticipate the future  
+- `protocol-spec.md`
+- `data-model.md`
+- `architecture.md`
+- `transaction-lifecycle.md`
 
-This is not merely a cryptocurrency.
+These documents describe the intended system behavior independently of implementation stage.
 
-It is an experiment in distributed coordination and temporal structure.
+
+---
+
+## Current Node
+
+The existing Rust node allows:
+
+- Genesis insertion
+- Valid transaction insertion
+- Double-spend rejection
+
+The node currently operates as an in-memory execution engine aligned with the protocol specification.
+
+
+---
+
+## Development Direction
+
+The next stages of implementation include:
+
+- Separation of validation layers
+- Mempool integration
+- Persistent storage
+- Cryptographic signature layer
+- Network layer
+- Confidence-based consensus
+
+
+---
+
+## Status
+
+Aion should be understood as a protocol with a defined architectural direction and an implementation progressing toward that specification.
 
 ---
 
