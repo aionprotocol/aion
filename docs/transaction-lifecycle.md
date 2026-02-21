@@ -1,236 +1,223 @@
-Aion Transaction Lifecycle v0.1
-1. Overview
+# Aion Transaction Lifecycle v0.1
 
-This document describes the complete lifecycle of a transaction inside an Aion node, from initial reception to probabilistic finality.
+## 1. Overview
 
-Aion operates under:
+This document describes the lifecycle of a transaction
+from reception to acceptance.
 
-DAG-based structure
+The process is deterministic and consensus-driven.
 
-UTXO state model
+---
 
-Post-quantum signatures
+## 2. Genesis Handling
 
-Probabilistic metastable consensus
+If the DAG is empty:
 
-There is no global ordering.
-Finality emerges from accumulated network confidence.
+- the first transaction received is treated as genesis
+- parent validation is skipped
+- UTXO outputs are inserted directly
 
-2. Transaction Entry Points
+Genesis must:
 
-A transaction may enter a node through:
+- contain no inputs
+- contain no parents
+- contain at least one output
 
-P2P Network (Gossip)
+Genesis initializes the ledger state.
 
-Local API Submission (Wallet)
+---
 
-In both cases, the serialized transaction is first processed identically.
+## 3. Transaction Flow
 
-3. Phase 1 — Structural Validation
+All non-genesis transactions follow the lifecycle below.
 
-Performed immediately upon reception.
+---
 
-3.1 Deserialization
+### Step 1 — Reception
 
-Decode using Borsh.
+Transaction enters the node via:
 
-Reject if malformed.
+- P2P network
+- Local API
 
-Reject if version unsupported.
+---
 
-3.2 Basic Structural Rules
+### Step 2 — Structural Validation
 
-Reject if:
+Checks:
 
-parents.len() < 2
+- serialization validity
+- field integrity
+- minimum parent count
 
-inputs.len() == 0
+Non-genesis rule:
 
-outputs.len() == 0
+- must reference at least two parents
 
-Transaction size exceeds maximum limit.
+---
 
-3.3 Hash Integrity
+### Step 3 — Hash Integrity
 
-Compute:
+Recompute:
 
 tx_id = SHA3-512(serialized_transaction)
 
-Ensure:
 
-tx_id matches internal consistency.
+Reject if mismatch.
 
-No duplicate tx_id already confirmed.
+---
 
-4. Phase 2 — Cryptographic Validation
+### Step 4 — Cryptographic Validation
 
-Handled by Crypto module.
+Verify:
 
-For each input:
+- Dilithium signature
+- public key consistency
+- locking hash correctness
 
-Verify Dilithium signature.
+---
 
-Verify domain separation tag.
+### Step 5 — DAG Validation
 
-Ensure locking_hash == SHA3-512(public_key).
+Verify:
 
-Reject if any signature fails.
+- parents exist
+- no cyclic dependency
 
-5. Phase 3 — DAG Validation
+Reject if any parent is missing.
 
-Handled by DAG module.
+---
 
-Ensure all parent transactions exist.
+### Step 6 — UTXO Validation
 
-Ensure no cyclic reference.
+Verify:
 
-Ensure no invalid ancestry.
+- referenced outputs exist
+- outputs are unspent
 
-Attach transaction to in-memory DAG.
+Reject if:
 
-If parents missing:
+- double spend
+- missing output
 
-Request from peers.
+---
 
-Mark transaction as pending.
+### Step 7 — Mempool Admission
 
-6. Phase 4 — UTXO Validation
+Transaction enters pending pool.
 
-Handled by UTXO module.
+Not yet canonical.
 
-For each input:
+---
 
-Ensure referenced output exists.
+### Step 8 — Consensus Sampling
 
-Ensure referenced output is unspent.
+Node samples peers to determine preference.
 
-Detect conflicting transactions.
+Conflicts are evaluated probabilistically.
 
-If double-spend conflict detected:
+---
 
-Register conflict set.
+### Step 9 — Confidence Accumulation
 
-Allow consensus to resolve.
+Each transaction receives a:
 
-Transaction enters mempool if valid.
 
-7. Phase 5 — Mempool Admission
+Reject if mismatch.
 
-Transaction is stored as:
+---
 
-State: Pending
-Confidence Score: 0
+### Step 4 — Cryptographic Validation
 
-Mempool may:
+Verify:
 
-Prioritize
+- Dilithium signature
+- public key consistency
+- locking hash correctness
 
-Rate limit
+---
 
-Reject spam
+### Step 5 — DAG Validation
 
-8. Phase 6 — Consensus Activation
+Verify:
 
-Consensus module begins probabilistic sampling.
+- parents exist
+- no cyclic dependency
 
-Process:
+Reject if any parent is missing.
 
-Sample random peers.
+---
 
-Query preferred transaction in conflict set.
+### Step 6 — UTXO Validation
 
-Update local preference.
+Verify:
 
-Increment confidence_score if stable.
+- referenced outputs exist
+- outputs are unspent
 
-Repeat asynchronously.
+Reject if:
 
-No global lockstep.
+- double spend
+- missing output
 
-9. Phase 7 — Confidence Accumulation
+---
 
-Each transaction maintains:
+### Step 7 — Mempool Admission
 
-confidence_score: u32
+Transaction enters pending pool.
+
+Not yet canonical.
+
+---
+
+### Step 8 — Consensus Sampling
+
+Node samples peers to determine preference.
+
+Conflicts are evaluated probabilistically.
+
+---
+
+### Step 9 — Confidence Accumulation
+
+Each transaction receives a:
+
+confidence_score
+
+
+based on repeated sampling.
+
+---
+
+### Step 10 — Acceptance
 
 When:
 
-confidence_score >= FINALITY_THRESHOLD
+confidence_score >= finality_threshold
 
-Transaction becomes:
 
-State: Accepted
+transaction becomes accepted.
 
-Threshold defined in protocol parameters.
+---
 
-10. Phase 8 — State Transition
+### Step 11 — State Transition
 
-When transaction becomes Accepted:
+Accepted transactions:
 
-UTXO set updated:
+- consume inputs
+- create new UTXOs
 
-Referenced outputs removed
+Rejected conflicts:
 
-New outputs inserted
+- remain in DAG
+- are ignored economically
 
-Transaction marked immutable
+---
 
-Mempool entry cleared
+## 4. Reorg-Free Property
 
-11. Conflict Resolution
+Aion does not rely on chain reorganization.
 
-In case of conflicting transactions:
+All transactions remain in the DAG.
 
-Both remain in DAG.
-
-Consensus sampling determines preference.
-
-Losing transaction remains orphaned.
-
-UTXO updates only applied to winner.
-
-12. Reorg-Free Model
-
-Aion does not perform chain reorgs.
-
-Instead:
-
-DAG retains all transactions.
-
-Confidence determines canonical state.
-
-No rollback of accepted transactions once threshold reached.
-
-13. Finality Properties
-
-A transaction is considered:
-
-Pending — validated but low confidence.
-
-Preferred — locally winning conflict.
-
-Accepted — crossed finality threshold.
-
-Rejected — lost metastable consensus.
-
-Finality is probabilistic but irreversible beyond threshold.
-
-14. Security Considerations
-
-The lifecycle assumes:
-
-Malicious peers may exist.
-
-Transactions may arrive out of order.
-
-Quantum-capable adversaries may exist.
-
-Network partitions may occur.
-
-Safety depends on:
-
-Deterministic validation.
-
-Sufficient sampling rounds.
-
-Honest majority assumption.
+Consensus defines economic relevance, not structural existence.
