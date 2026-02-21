@@ -163,3 +163,7 @@ All signatures must be post-quantum secure.
 ## 7. Address Model
 
 Addresses are defined as:
+
+address = SHA3-512(public_key)
+
+Public keys remain hidden until spend time.
