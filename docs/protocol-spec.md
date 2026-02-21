@@ -1,224 +1,165 @@
-Aion Protocol Specification v0.2
+# Aion Protocol Specification v0.2 (Post-Quantum Conservative Architecture)
 
-Post-Quantum Conservative Architecture
+## 1. Overview
 
-1. Threat Model
+Aion is a blockless distributed ledger protocol built under a conservative threat model.
 
-Aion assumes the existence of adversaries with:
+The system assumes that adversaries may possess large-scale quantum computational capabilities.
 
-Large-scale quantum computational capability
+Aion is therefore designed to remain secure even if classical public-key cryptography becomes vulnerable.
 
-Real-time network surveillance
+Core characteristics:
 
-Ability to attempt key recovery immediately after public key exposure
+- Directed Acyclic Graph (DAG) ledger structure
+- UTXO-based state model
+- Probabilistic metastable consensus
+- Confidence-based finality
+- Emergent logical time
+- Fully post-quantum cryptography
 
-Significant computational and financial resources
+---
 
-All protocol decisions prioritize long-term cryptographic resilience.
+## 2. Design Principles
 
-2. Ledger Model
+1. No reliance on classical signature schemes.
+2. No backward compatibility with quantum-vulnerable cryptography.
+3. Minimal exposure of public keys.
+4. Fresh-key usage per output.
+5. Structural security over convenience.
 
-The ledger is a Directed Acyclic Graph (DAG).
+---
 
-Definition
+## 3. Ledger Structure
 
-Each vertex represents a transaction.
+The ledger is represented as a Directed Acyclic Graph (DAG).
 
-Each edge represents a parent reference.
+- Vertices = Transactions
+- Edges = Parent references
 
-No cycles are allowed.
+Each transaction must reference at least two previous valid transactions.
 
 No global linear ordering exists.
 
-Each transaction must reference at least two valid parent transactions.
+Ordering emerges from causal structure and validator convergence.
 
-3. Transaction Structure
+---
 
-A transaction consists of:
+### 3.1 Bootstrap Exception (Genesis Rule)
 
-Transaction = {
-    header,
-    body
-}
-3.1 Header
-header = {
-    parents: [tx_id, tx_id, ...],
-    timestamp: u64
-}
+The requirement that each transaction references at least two parents
+applies to all transactions except the genesis transaction.
 
-Constraints:
+The genesis transaction is defined as:
 
-At least two parent references.
+- a transaction with:
+  - zero inputs
+  - zero parents
+  - at least one output
 
-Parents must exist and be valid.
+Its purpose is solely to initialize the UTXO set.
 
-Timestamp is informational only (non-consensus).
+Genesis is accepted unconditionally by all nodes and serves as the
+root of the DAG.
 
-3.2 Body
-body = {
-    inputs: [Input],
-    outputs: [Output]
-}
+All subsequent transactions must reference at least two parents.
 
-The body is the signed portion.
+---
 
-4. Input Structure
-Input = {
-    referenced_output_id: Hash512,
-    public_key: DilithiumPublicKey,
-    signature: DilithiumSignature
-}
+### 3.2 Parent Ordering
+
+Parent references must be serialized in deterministic order.
+
+Nodes MUST sort parent transaction IDs lexicographically
+before computing tx_id.
+
+This prevents hash divergence across implementations.
+
+---
+
+## 4. Transaction Model (UTXO — Post-Quantum)
+
+Aion uses a UTXO model adapted for a DAG-based ledger.
+
+Each transaction consists of:
+
+### 4.1 Header
+
+- `tx_id` — SHA3-512 hash of the serialized transaction
+- `parents` — array of at least two previous transaction IDs
+- `timestamp` — local timestamp (non-authoritative)
+
+---
+
+### 4.2 Inputs
+
+Each input contains:
+
+- `referenced_output_id`
+- `public_key` (CRYSTALS-Dilithium)
+- `signature` (Dilithium signature over transaction body)
 
 Rules:
 
-referenced_output_id must exist in current UTXO set.
+- Each input must reference an unspent output.
+- Public keys are revealed only at spend time.
+- Signature must validate against the locking condition.
+- Double-spend attempts are resolved via probabilistic consensus.
 
-signature signs the serialized body.
+---
 
-public_key must satisfy:
+### 4.3 Outputs
 
-SHA3-512(public_key) == locking_hash of referenced output
+Each output contains:
 
-5. Output Structure
-Output = {
-    amount: u128,
-    locking_hash: Hash512
-}
-
-Where:
-
-locking_hash = SHA3-512(public_key)
+- `amount`
+- `locking_hash` = SHA3-512(public_key)
 
 Rules:
 
-Amount must be positive.
+- Each output must correspond to a fresh public key.
+- Wallet implementations must avoid key reuse.
 
-Total input amount ≥ total output amount.
+---
 
-Difference constitutes transaction fee.
+## 5. UTXO Set
 
-6. Transaction ID
-tx_id = SHA3-512(serialize(header || body))
+The UTXO set contains all currently unspent outputs.
 
-512-bit identifier.
+An output is removed from the UTXO set once referenced by a valid transaction input.
 
-Collision-resistant under quantum-reduced security assumptions.
+Conflicts are resolved through consensus confidence accumulation.
 
-7. UTXO Set
+---
 
-The UTXO set maintains all unspent outputs.
+## 6. Cryptographic Primitives
 
-An output is removed when:
+Aion assumes adversaries may execute Shor's algorithm at scale.
 
-A valid transaction referencing it accumulates sufficient confidence.
+### 6.1 Hash Function
 
-Double-spend resolution is handled probabilistically via consensus convergence.
-
-8. Consensus Model
-
-Aion uses metastable probabilistic consensus:
-
-Validator samples k random peers.
-
-Requests preferred transaction in case of conflict.
-
-Updates local preference if supermajority observed.
-
-Repeats sampling until convergence threshold met.
-
-No mining.
-No leader.
-No block production.
-
-9. Confidence Score
-
-Each transaction maintains:
-
-confidence_score ∈ [0, 1]
-
-Confidence increases when:
-
-Sampling rounds prefer the transaction.
-
-Descendants reinforce its validity.
-
-Network convergence stabilizes.
-
-Finality condition:
-
-confidence_score ≥ finality_threshold
-
-Threshold defined via network parameters.
-
-10. Cryptographic Primitives
-Hash Function
-
-SHA3-512
+- SHA3-512
+- 512-bit output
+- ~256-bit effective security under Grover reduction
 
 Used for:
 
-Transaction IDs
+- Transaction IDs
+- Address derivation
+- Integrity verification
 
-Address derivation
+---
 
-Integrity checks
+### 6.2 Digital Signatures
 
-Digital Signatures
+- CRYSTALS-Dilithium (highest NIST security category)
+- No ECDSA
+- No EdDSA
+- No hybrid mode
 
-CRYSTALS-Dilithium (highest NIST category)
+All signatures must be post-quantum secure.
 
-No classical signatures supported
+---
 
-No hybrid fallback
-
-11. Address Model
+## 7. Address Model
 
 Addresses are defined as:
-
-address = SHA3-512(public_key)
-
-Public keys are only revealed at spend time.
-
-Each output must use a fresh public key.
-
-Key reuse is strongly discouraged and may be rejected by future consensus rules.
-
-12. Security Properties
-
-Aion aims to provide:
-
-Post-quantum signature security
-
-256-bit effective hash security under Grover reduction
-
-Minimal key exposure window
-
-Resistance to leader-targeted attacks
-
-Resistance to block reorganization attacks (no blocks)
-
-13. Economic Model (High-Level)
-
-Low perpetual inflation
-
-Continuous validator rewards
-
-Near-zero dynamic anti-spam fees
-
-Contribution-weighted incentive model
-
-Formal economic equations defined separately.
-
-Status
-
-This document defines the formal post-quantum conservative architecture of Aion.
-
-Further specifications will define:
-
-Binary serialization format
-
-Networking protocol
-
-Validator reward formulas
-
-Governance parameters
